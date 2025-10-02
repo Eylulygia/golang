@@ -2,11 +2,12 @@ package main
 
 import (
     "fmt"
+    "os"
     "github.com/gofiber/fiber/v2"
     "github.com/golang-jwt/jwt/v4"
 )
 
-var JwtSecret = []byte("supersecretkey") // ileride .env’ye taşırsın
+var JwtSecret = []byte(os.Getenv("JWT_SECRET")) //daha güvenli
 
 func AuthMiddleware(c *fiber.Ctx) error {
     tokenString := c.Get("Authorization")
@@ -14,6 +15,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
         return c.Status(401).JSON(fiber.Map{"error": "Missing token"})
     }
 
+    // "Bearer" kısmını geç
     if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
         tokenString = tokenString[7:]
     }
