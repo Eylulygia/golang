@@ -3,6 +3,7 @@ package main
 import (
     "context"
     "github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func BookRoutes(app *fiber.App) {
@@ -15,6 +16,10 @@ func BookRoutes(app *fiber.App) {
         }
         bookName := data["book"]
 
+		if bookName == "" {
+            return c.Status(400).JSON(fiber.Map{"error": "Book name is required"})
+        }
+
         collection := client.Database("library").Collection("users")
         var user User
         err := collection.FindOne(context.TODO(), map[string]string{"email": email}).Decode(&user)
@@ -23,7 +28,21 @@ func BookRoutes(app *fiber.App) {
         }
 
         if len(user.Books) >= 2 {
-            return c.Status(400).JSON(fiber.Map{"error": "Max 2 books allowed"})
+            return c.Status(409).JSON(fiber.Map{"error": "Max 2 books allowed"})
+        }
+
+		for _, b := range user.Books {
+            if b == bookName {
+                return c.Status(409).JSON(fiber.Map{"error": "You already borrowed this book"})
+            }
+        }
+
+        // Kitap başka kullanıcıda mı?
+        var otherUser User
+        err = collection.FindOne(context.TODO(), bson.M{"books": bookName}).Decode(&otherUser)
+        if err == nil {
+            // err == nil → kitap bulundu demek
+            return c.Status(409).JSON(fiber.Map{"error": "Book already borrowed by another user"})
         }
 
         user.Books = append(user.Books, bookName)
@@ -35,7 +54,7 @@ func BookRoutes(app *fiber.App) {
             return c.Status(500).JSON(fiber.Map{"error": "Could not borrow book"})
         }
 
-        return c.JSON(fiber.Map{"message": "Book borrowed", "books": user.Books})
+          return c.Status(201).JSON(fiber.Map{"message": "Book borrowed successfully", "books":   user.Books,})
     })
 
     // Return
