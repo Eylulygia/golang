@@ -9,42 +9,40 @@ import (
 
     "github.com/gofiber/fiber/v2"
     "github.com/joho/godotenv"
-    "go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
-    //"golang.org/x/crypto/bcrypt"
 )
 
-//MongoDB bağlantısını global olarak saklayan bir pointer.
 var client *mongo.Client
 
-type User struct {
-    ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-    Email    string             `json:"email"`
-    Password string             `json:"password"`
-    Books    []string           `json:"books"`
-}
-
 func main() {
-	//.env yüklüyoruz
-	err := godotenv.Load() //hata mesajini yakala 
-	if err != nil {
-		log.Fatal("Error loading .env")
-	}
-	//databse bağlanma islemi
-	uri := os.Getenv("MONGODB_URI")
+    err := godotenv.Load()
+    if err != nil {
+        log.Fatal("Error loading .env")
+    }
+
+    //mongo bağlantısı, 10 saniye içinde bağlantı kurulmazsa iptal et, hata dön.
+    uri := os.Getenv("MONGODB_URI")
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-	client, err = mongo.Connect(ctx, options.Client().ApplyURI(uri))
-	if err != nil {
-    	log.Fatal(err)
+    client, err = mongo.Connect(ctx, options.Client().ApplyURI(uri))
+    if err != nil {
+        log.Fatal(err)
     }
-	app := fiber.New()
+    // gerçekten bağlandı mı test ediyoruz.
+    err = client.Ping(ctx, nil)
+    if err != nil {
+        log.Fatal(err)
+    }
+    app := fiber.New()
 
-	fmt.Println("🚀 Server running on http://localhost:3000")
+    // Route kayıtları
+    RegisterRoute(app)
+    AuthRoutes(app)
+    DeleteRoute(app)
+    BookRoutes(app)
+
+    fmt.Println("Server running on http://localhost:3000")
     log.Fatal(app.Listen(":3000"))
-	
-
-
 }
